@@ -1,5 +1,7 @@
-import ollama
+#synchronize embeddings from Ollama to Postgres PGVector store.
+#Custom postgres table 'documents' is used here.
 
+import ollama
 import psycopg2
 import tiktoken
 import requests
@@ -8,7 +10,6 @@ import json
 from urllib.parse import urljoin
 import os
 from dotenv import load_dotenv
-
 
 if os.getenv('ENV') is None:  #only in local run the below
         load_dotenv()
@@ -37,7 +38,6 @@ link_system_prompt += """
     ]
 }
 """
-
 
 class Website():
     def __init__(self,url):
@@ -142,6 +142,7 @@ def insert_chunk(source: str, content: str, embedding: list, chunk_index: int):
         (source, content, embedding, chunk_index)
     )
 
+# crawl is limited to depth 1 for simplicity
 def crawl_and_store(url):
     website = Website(url)
 
@@ -179,5 +180,3 @@ def crawl_and_store(url):
 
     conn.commit()
     print("✅ Stored documents in PostgreSQL")
-
-crawl_and_store("https://docs.gitlab.com/")

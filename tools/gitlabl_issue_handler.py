@@ -123,3 +123,35 @@ class GitlabIssueHander():
                 })
 
         return issue_list
+    
+    async def code_runner_tool(self, code: str) -> str:
+        """Executes the provided Python code and returns the output.
+
+        Args:
+            code: A string containing the Python code to execute.
+        Returns:
+            The status  of the executed code as a string.
+        """
+        #create a python file with the code string
+        import tempfile
+        import os
+        import subprocess
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code)
+            temp_file = f.name
+        
+        env = {
+            "GITLAB_TOKEN": os.environ.get("GITLAB_ACCESS_TOKEN", ""),
+        }
+
+        try:
+            result = subprocess.run(['python3', temp_file], capture_output=True, text=True, timeout=10 , env=env)
+            if result.returncode == 0:
+                return f"Code executed successfully. Output:\n{result.stdout}"
+            else:
+                return f"Code execution failed. Error:\n{result.stderr}"
+        except subprocess.TimeoutExpired:
+            return "Code execution timed out."
+        finally:
+            os.unlink(temp_file)
