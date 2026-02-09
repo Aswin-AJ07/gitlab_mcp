@@ -20,5 +20,6 @@ dependencies = [
     "psycopg2>=2.9.11",
     "psycopg[async,binary]>=3.3.2",
     "requests>=2.32.5",
+    "sentence-transformers>=5.2.2",
     "tiktoken>=0.12.0",
 ]

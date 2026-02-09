@@ -98,6 +98,34 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.engine import URL
 
 
+from sentence_transformers import CrossEncoder
+from langchain_core.runnables import RunnableLambda
+
+reranker = CrossEncoder("BAAI/bge-reranker-base")
+
+def rerank_docs(inputs: dict):
+    query = inputs["question"]
+    docs = inputs["context"]
+
+    pairs = [(query, d.page_content) for d in docs]
+    scores = reranker.predict(pairs)
+
+    scored = list(zip(docs, scores))
+    scored.sort(key=lambda x: x[1], reverse=True)
+
+    top_docs = [d for d, s in scored[:5]]  # keep top 5
+
+    # join as context string for prompt
+    context_text = "\n\n".join(d.page_content for d in top_docs)
+
+    return {
+        "context": context_text,
+        "question": query
+    }
+
+rerank_runnable = RunnableLambda(rerank_docs)
+
+
 url = URL.create("postgresql+psycopg2", username="postgres", password=POSTGRE_PASS, host="localhost", database="postgres")
 engine = create_engine(url)
 pg_engine = create_engine(url)
@@ -137,8 +165,9 @@ vectorstore_pg = PGVectorStore.create_sync(
 retriever = vectorstore_pg.as_retriever(
     search_type="mmr",
     search_kwargs={
-        "k": 5,
-        "fetch_k": 20
+        "k": 8,
+        "fetch_k": 50,
+        "lambda_mult": 0.7
     }
 )
 
@@ -163,31 +192,29 @@ llm = OllamaLLM(
 
 rag_chain = (
     {
-        "context": retriever,
+        "context": retriever,          # step 1: retrieve
         "question": RunnablePassthrough()
     }
-    | prompt
+    | rerank_runnable                 # ⭐ step 2: rerank here
+    | prompt                          # step 3: send best docs
     | llm
     | StrOutputParser()
 )
 
-# retriever_2 = vectorstore_pg.as_retriever(
-#     search_type="similarity",
-#     search_kwargs={
-#         "k": 5
-#     }
-# )
-
-
-# using_ollama_chat()
-
-
-docs = retriever.invoke("Get all labels for a given project. project with id 123456 in gitlab?")
-print(f"Retrieved docs: {docs}")
-
-
-# docs = retriever_2.invoke("what are the step to Create a service account personal access token with no expiry date in GitLab?")
-# print(f"Retrieved docs 2: {docs}")
-
-res = rag_chain.invoke("Get all labels for a given project. project with id 123456 in gitlab?")
+res = rag_chain.invoke("Lists all issues for a specified group.")
 print(res)
+
+
+# Reranker to improve the retrieved contexts using a cross encoder model. This is an optional step and can be skipped if the initial retrieval quality is good.
+# reranked_docs = rerank("Lists all issues for a specified group.", docs)
+# print(f"Reranked docs - {reranked_docs}")
+
+# from langchain_core.runnables import RunnableLambda
+
+# rerank_runnable = RunnableLambda(rerank_docs)
+
+
+
+# deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
+# https://docs.cloud.google.com/agent-builder/agent-engine/develop/custom
+# https://github.com/googleapis/langchain-google-cloud-sql-pg-python/blob/main/samples/langchain_on_vertexai/retriever_agent_with_history_template.py

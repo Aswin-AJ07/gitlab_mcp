@@ -35,8 +35,10 @@ if __name__ == '__main__':
 # TO DO 
 # Next steps - MCP server prompts and MCP Client
 
-# RAG
-# Write a better crawler that can go multiple levels deep
+# RAG 
+#deploy the rag agent to google cloud vertex ai
+
+
 
 # Better solution - 
 #  Prompts and client in code mode style. make LLM generate a python code for you. then run the code in a local for now , later sandboxed environment.

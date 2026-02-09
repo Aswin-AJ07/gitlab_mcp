@@ -56,6 +56,7 @@ class GitlabIssueHander():
         self.mcp.tool(name="add_tool")(self.add_tool)   
         self.mcp.tool(name="filter_user")(self.filter_user)
         self.mcp.tool(name="list_user_issues")(self.list_user_issues)
+        self.mcp.tool(name="code_runner_tool")(self.code_runner_tool)
 
     def add_tool(self,a: Annotated[int, "input a"], b: int) -> int:
         """Adds two integer numbers together.

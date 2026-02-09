@@ -61,19 +61,40 @@ class AsyncWebsite:
         # ----------------------------
         # Create heading-based blocks
         # ----------------------------
-        self.blocks = []
-        current_heading = "Introduction"
+        self.sections = []
+        current_section = {
+            "heading": "Introduction",
+            "content": []
+        }
 
-        for tag in main_content.find_all(["h1", "h2", "h3", "h4", "h5", "p", "li", "pre", "code", "table"]):
-            if tag.name.startswith("h"):
-                current_heading = tag.get_text(strip=True)
+        for tag in main_content.find_all(
+            ["h1", "h2", "h3", "h4", "h5", "p", "li", "pre", "code", "table"]
+        ):
+            if tag.name in ["h1", "h2", "h3"]:
+                # push old section
+                if current_section["content"]:
+                    self.sections.append({
+                        "heading": current_section["heading"],
+                        "text": "\n".join(current_section["content"])
+                    })
+
+                # start new section
+                current_section = {
+                    "heading": tag.get_text(strip=True),
+                    "content": []
+                }
+
             else:
                 text = tag.get_text(" ", strip=True)
                 if text:
-                    self.blocks.append({
-                        "heading": current_heading,
-                        "text": text
-                    })
+                    current_section["content"].append(text)
+
+        # append last
+        if current_section["content"]:
+            self.sections.append({
+                "heading": current_section["heading"],
+                "text": "\n".join(current_section["content"])
+            })
     
     def get_contents(self):
         return f"Webpage Title:\n{self.title}\nWebpage Contents:\n{self.text}\n\n"
@@ -146,27 +167,39 @@ class AsyncCrawler:
 
         page = AsyncWebsite(url, html)
         print(f"Crawled (depth {depth}): {url}")
-
-        texts = [ f"{b['heading']}\n{b['text']}" for b in page.blocks ]
-
-        chunks = self.langchain_chunk_text(texts="\n\n".join(texts), chunk_size=500, chunk_overlap=50)
-        
         docs = []
-        
-        for i, chunk in enumerate(chunks):
-            content_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
-            # create a UUID from first 32 chars of hash_hex (hex string)
-            doc_id = str(uuid.UUID(content_hash[:32]))
-            docs.append(
-                Document(
-                    page_content=chunk,
-                    metadata={
-                        "source": url,
-                        "chunk_index": i,
-                    },
-                    id=f"{doc_id}",
+
+        for section_index, section in enumerate(page.sections):
+            section_text = f"{section['heading']}\n{section['text']}"
+
+            # only split if very large
+            if len(section_text) > 1200:
+                chunks = self.langchain_chunk_text(
+                    texts=section_text,
+                    chunk_size=800,
+                    chunk_overlap=100
                 )
-            )
+            else:
+                chunks = [section_text]
+
+            for chunk_index, chunk in enumerate(chunks):
+                content_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()
+                # create a UUID from first 32 chars of hash_hex (hex string)
+                doc_id = str(uuid.UUID(content_hash[:32]))
+                docs.append(
+                    Document(
+                        page_content=chunk,
+                        metadata={
+                            "source": url,             
+                            "page_title": page.title,
+                            "section_heading": section["heading"],
+                            "section_index": section_index,
+                            "chunk_index": chunk_index,
+                        },
+                        id=f"{doc_id}",
+                    )
+                )
+
         print('Prepared', len(docs), 'documents for', url)
         #insert to postgres using langchain document format
         if docs:
@@ -239,12 +272,11 @@ async def main():
         )
 
     pgengine = PGEngine.from_engine(engine)
-
     
-    pg_vectorestore = await setup_vectorstore(pgengine, "gitlab_api_rcts", embeddings)
+    pg_vectorestore =  await setup_vectorstore(pgengine, "gitlab_api_rcts", embeddings)
     
     crawler = AsyncCrawler(
-        base_url="https://docs.gitlab.com/api/api_resources/",
+        base_url=  "https://docs.gitlab.com/api/api_resources/",
         max_depth=1,
         max_concurrency=5,
         tokenizer=tokenizer,
@@ -256,3 +288,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    # AsyncCrawler()
