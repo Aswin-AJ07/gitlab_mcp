@@ -1,88 +1,9 @@
-import ollama
-import psycopg2     
 import os
-
 from dotenv import load_dotenv
 
 if os.getenv('ENV') is None:  #only in local run the below
     load_dotenv()
 POSTGRE_PASS = os.getenv('POSTGRE_PASS')
-
-
-# Database connection setup
-conn = psycopg2.connect(
-    dbname="postgres",
-    user="postgres",
-    password=POSTGRE_PASS,
-    host="localhost",
-    port=5432
-)
-cur = conn.cursor()
-
-def similarity_search(conn, query_embedding, top_k=5):
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT source, content, chunk_index,
-                   1 - (embedding <=> %s::vector) AS similarity
-            FROM documents
-            ORDER BY embedding <=> %s::vector
-            LIMIT %s;
-        """, (query_embedding, query_embedding, top_k))
-        results = cur.fetchall()
-    return results
-
-def generate_answer_with_context(question, retrieved_chunks, llm_model="qwen2.5:7b"):
-    # Combine the retrieved chunks as context for the LLM
-    context = "\n\n".join([chunk[1] for chunk in retrieved_chunks])  # chunk[1] is content
-
-    system_prompt = """You are an expert python programmer that writes simple, concise code and explanations.
-
-    You MUST respond ONLY with runnable Python code to call GitLab APIs based on the user question, parameters, and context.
-    The environment variable for the GitLab token is GITLAB_ACCESS_TOKEN.
-    Only respond ONLY with the code between <output> tags and nothing else
-      """
-    prompt = f"""
-                write python code for below question using gitlab api and make use of the context provided.
-
-                Use the context only to find the relevant API endpoints and parameters.
-                Context:
-                {context}
-
-                Question:
-                {question}
-
-                Remember to respond ONLY with python code.
-                DO NOT include any explanations or text.
-    """
-
-    response = ollama.chat(
-        model=llm_model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ],
-    )
-    return response["message"]["content"]
-
-def using_ollama_chat():
-    # Usage example
-    query = "Configuring GitLab Pages without GDK"
-
-    # 1. Embed query
-    embedding = ollama.embed(model="nomic-embed-text", input=query)["embeddings"][0]
-
-    # 2. Search relevant chunks from manual postgres table
-    matches = similarity_search(conn, embedding, top_k=5)
-    print("=== Retrieved contexts ===")
-    for match in matches:
-        print(f"Source: {match[0]}, Chunk Index: {match[2]}")
-        print(f"Content: {match[1]}")
-        print("-----")
-
-    # 3. Generate answer using retrieved context
-    answer = generate_answer_with_context(query, matches)
-    print("=== Final Answer ===")
-    print(answer)
 
 
 #Using Langchain vector search on the langchain table instead of manual postgres queries
@@ -173,22 +94,22 @@ retriever = vectorstore_pg.as_retriever(
 
 
 prompt = ChatPromptTemplate.from_template("""
-You are a helpful assistant.
-Use ONLY the following context to answer the question.
+            You are a helpful assistant.
+            Use ONLY the following context to answer the question.
 
-Context:
-{context}
+            Context:
+            {context}
 
-Question:
-{question}
+            Question:
+            {question}
 
-Answer:
-""")
+            Answer:
+            """)
 
 llm = OllamaLLM(
-    model="codellama:7b",
-    temperature=0.2
-)
+                model="codellama:7b",
+                temperature=0.2
+            )
 
 rag_chain = (
     {
@@ -205,16 +126,13 @@ res = rag_chain.invoke("Lists all issues for a specified group.")
 print(res)
 
 
-# Reranker to improve the retrieved contexts using a cross encoder model. This is an optional step and can be skipped if the initial retrieval quality is good.
-# reranked_docs = rerank("Lists all issues for a specified group.", docs)
-# print(f"Reranked docs - {reranked_docs}")
 
-# from langchain_core.runnables import RunnableLambda
-
-# rerank_runnable = RunnableLambda(rerank_docs)
+#how to make it better ?
+# 1. Along with vector search , include parse Keyword Search - metadata filtering to narrow down the search space first before retrieval. for example filter by source or section heading based on the question. this can be a separate runnable before retrieval step.
+# 2. Reranking step with cross encoder to improve relevance of retrieved documents. implemented above.
 
 
-
+#Deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
 # deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
 # https://docs.cloud.google.com/agent-builder/agent-engine/develop/custom
 # https://github.com/googleapis/langchain-google-cloud-sql-pg-python/blob/main/samples/langchain_on_vertexai/retriever_agent_with_history_template.py
