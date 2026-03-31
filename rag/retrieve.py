@@ -101,7 +101,17 @@ retriever = vectorstore.as_retriever(
 #   PROMPT
 # =========================================================
 prompt = ChatPromptTemplate.from_template("""
-You are a helpful assistant.
+You are a helpful Gitlab API assistant. You retuen the API response based on the retrieved context. If the context does not contain the answer, say "Sorry, I don't know how to help with that."
+The response should be a json object with API , api type and the parameters. Do not include any extra text, only the json object.
+If the api has request params , replace the param in the api with the value provided in the question. If the value is not provided in the question, keep the param name as it is.                                          
+If the api requires any json request body, include it in the parameters field as a json object. The keys of the json object should be the parameter names and the values should be the values provided in the question. If the value is not provided in the question, keep the parameter name as it is and value as empty string.
+exampe response for question "Lists all issues for a specified group with id 12345." would be:
+{{
+    "api": "/groups/12345/issues",
+    "api_type": "GET",
+    "parameters": {{}}
+}}
+                                                                                   
 Use ONLY the following context to answer the question.
 
 Context:
@@ -110,7 +120,7 @@ Context:
 Question:
 {question}
 
-Answer:
+Only return the json object, no explanation or extra text.
 """)
 
 
@@ -146,8 +156,6 @@ Example:
     ]
 
     response = llm.invoke(messages)
-
-    print(response)
     return json.loads(response)
 
 
@@ -159,7 +167,8 @@ def calculate_rrf_scores(docs,  rrf_scores, doc_map ,rrf_k=60):
     for rank, doc in enumerate(docs, start=1):
             doc_id = doc.id
 
-            doc_map[doc_id] = doc
+            if doc_id not in doc_map:
+                doc_map[doc_id] = doc
             score = 1 / (rrf_k + rank)
             rrf_scores[doc_id] += score
 
@@ -199,13 +208,17 @@ def rag_search(user_query: str):
     return answer
 
 
+
+
 # =========================================================
 # 🧪 TEST
 # =========================================================
-if __name__ == "__main__":
-    query = "Lists all issues for a specified group."
-    result = rag_search(query)
-    print("\n🧠 FINAL ANSWER:\n", result)
+# if __name__ == "__main__":
+#     query = "Lists all issues in a project 12546 with iteration title 'iteration 1' and label 'bug'."
+#     result = rag_search(query)
+#     print("\n🧠 FINAL ANSWER:\n", result)
+#     json_res = json.loads(result)
+#     print(json_res)
 
 # TO DO
 # 1. multi query , generate multiple queries from the main query and do multiple retrievals. 

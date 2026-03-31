@@ -289,3 +289,9 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     # AsyncCrawler()
+
+
+# gitlab had added copy llm button to their docs, so we can use that to get more structured data for api endpoints, parameters, and descriptions. This will be more efficient than crawling and chunking the entire docs.
+#  We can use the copy button data to directly create structured documents for each API endpoint, which will be more useful for answering user queries about GitLab's API.
+
+# example: https://docs.gitlab.com/api/plan_limits/index.md. You can directly fetch this and chunk it based on the API endpoints and parameters, rather than crawling the entire page. This will give you more relevant and concise information for each API endpoint, which will be more efficient for answering user queries about GitLab's API.

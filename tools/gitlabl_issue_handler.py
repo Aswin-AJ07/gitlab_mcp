@@ -6,35 +6,6 @@ from fastmcp.tools.tool import ToolResult
 import json
 
 from service.gitlab_issue_service import GitlabIssueService
-"""
-
-**Exclude args: to avoid runtime args to be sent to LLM -  
-@mcp.tool(name="get_user_details",exclude_args=["user_id"])
-def get_user_details(user_id: str = None) -> str:
-
-**Strunctured Response - 
-@dataclass
-class User:
-    id: int
-    name: str
-    role: str
-Tools can return User and it is handled properly in mcp response
-
-
-**For complete control over tool responses, return a ToolResult object. 
-@mcp.tool
-def advanced_tool() -> ToolResult:
-    Tool with full control over output
-    return ToolResult(
-        content=[TextContent(type="text", text="Human-readable summary")],
-        structured_content={"data": "value", "count": 42},
-        meta={"execution_time_ms": 145}
-    )
-
-    
-"""
-
-
 
 class GitlabIssueHander():
 
@@ -53,10 +24,11 @@ class GitlabIssueHander():
 #       @self.mcp.tool("resource://users")
         # def get_project_users(...):
             #     ...
-        self.mcp.tool(name="add_tool")(self.add_tool)   
-        self.mcp.tool(name="filter_user")(self.filter_user)
-        self.mcp.tool(name="list_user_issues")(self.list_user_issues)
-        self.mcp.tool(name="code_runner_tool")(self.code_runner_tool)
+        # self.mcp.tool(name="add_tool")(self.add_tool)   
+        # self.mcp.tool(name="filter_user")(self.filter_user)
+        # self.mcp.tool(name="list_user_issues")(self.list_user_issues)
+        self.mcp.tool(name="get_gitlab_data")(self.get_gitlab_data)
+        # self.mcp.tool(name="code_runner_tool")(self.code_runner_tool)
 
     def add_tool(self,a: Annotated[int, "input a"], b: int) -> int:
         """Adds two integer numbers together.
@@ -125,6 +97,38 @@ class GitlabIssueHander():
 
         return issue_list
     
+    def get_gitlab_data(self, query: str) -> list:
+        """
+        Tool for ANY GitLab-related queries.
+
+        MUST be used when the user asks about:
+        - GitLab issues
+        - GitLab projects
+        - GitLab merge requests
+        - GitLab pipelines
+        - Filtering by project id, user id, iteration, or dates
+
+        DO NOT answer from memory.
+        ALWAYS call this tool for GitLab data.
+
+        Input:
+        {
+            "query": "<FULL user query as string>"
+        }
+
+        INPUT FORMAT:
+        - Pass the FULL user query as a plain string
+        - Do NOT wrap it inside another object
+        - Do NOT extract fields
+
+        Correct example:
+        { "query": "List issues in project 123" }
+        """
+        return self.gitlab_service.call_gitlab_api(query)
+
+
+    
+    #Below is test code , checking on code runner kind of python tool
     async def code_runner_tool(self, code: str) -> str:
         """Executes the provided Python code and returns the output.
 
