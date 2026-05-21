@@ -6,35 +6,6 @@ from fastmcp.tools.tool import ToolResult
 import json
 
 from service.gitlab_issue_service import GitlabIssueService
-"""
-
-**Exclude args: to avoid runtime args to be sent to LLM -  
-@mcp.tool(name="get_user_details",exclude_args=["user_id"])
-def get_user_details(user_id: str = None) -> str:
-
-**Strunctured Response - 
-@dataclass
-class User:
-    id: int
-    name: str
-    role: str
-Tools can return User and it is handled properly in mcp response
-
-
-**For complete control over tool responses, return a ToolResult object. 
-@mcp.tool
-def advanced_tool() -> ToolResult:
-    Tool with full control over output
-    return ToolResult(
-        content=[TextContent(type="text", text="Human-readable summary")],
-        structured_content={"data": "value", "count": 42},
-        meta={"execution_time_ms": 145}
-    )
-
-    
-"""
-
-
 
 class GitlabIssueHander():
 
@@ -49,13 +20,11 @@ class GitlabIssueHander():
         self.mcp = mcp
         self.gitlab_service = GitlabIssueService()
 
-        #registers tool
-#       @self.mcp.tool("resource://users")
-        # def get_project_users(...):
-            #     ...
-        self.mcp.tool(name="add_tool")(self.add_tool)   
-        self.mcp.tool(name="filter_user")(self.filter_user)
-        self.mcp.tool(name="list_user_issues")(self.list_user_issues)
+        # self.mcp.tool(name="add_tool")(self.add_tool)   
+        # self.mcp.tool(name="filter_user")(self.filter_user)
+        # self.mcp.tool(name="list_user_issues")(self.list_user_issues)
+        self.mcp.tool(name="get_gitlab_data")(self.get_gitlab_data)
+        # self.mcp.tool(name="code_runner_tool")(self.code_runner_tool)
 
     def add_tool(self,a: Annotated[int, "input a"], b: int) -> int:
         """Adds two integer numbers together.
@@ -106,10 +75,6 @@ class GitlabIssueHander():
             A list of issues assigned to the user.
         """
 
-
-        # get user_id from mcp resource users
-
-
         #call gitlab api to get issues assigned to user id
         issues = await self.gitlab_service.get_issues_by_user(user_id)
         
@@ -123,3 +88,68 @@ class GitlabIssueHander():
                 })
 
         return issue_list
+    
+    #Gitlab mega tool , which can be called for ANY gitlab related query, and it will call the right api and return the data, the input is the FULL user query as a string, and the output is the api response in json format, this tool MUST be used when the user asks about anything related to gitlab, DO NOT answer from memory, ALWAYS call this tool for gitlab data.
+    def get_gitlab_data(self, query: str) -> list:
+        """
+        Tool for ANY GitLab-related queries.
+
+        MUST be used when the user asks about:
+        - GitLab issues
+        - GitLab projects
+        - GitLab merge requests
+        - GitLab pipelines
+        - Filtering by project id, user id, iteration, or dates
+
+        DO NOT answer from memory.
+        ALWAYS call this tool for GitLab data.
+
+        Input:
+        {
+            "query": "<FULL user query as string>"
+        }
+
+        INPUT FORMAT:
+        - Pass the FULL user query as a plain string
+        - Do NOT wrap it inside another object
+        - Do NOT extract fields
+
+        Correct example:
+        { "query": "List issues in project 123" }
+        """
+        return self.gitlab_service.call_gitlab_api(query)
+
+
+    
+    #Below is test code , checking on code runner kind of python tool
+    async def code_runner_tool(self, code: str) -> str:
+        """Executes the provided Python code and returns the output.
+
+        Args:
+            code: A string containing the Python code to execute.
+        Returns:
+            The status  of the executed code as a string.
+        """
+        #create a python file with the code string
+        import tempfile
+        import os
+        import subprocess
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code)
+            temp_file = f.name
+        
+        env = {
+            "GITLAB_TOKEN": os.environ.get("GITLAB_ACCESS_TOKEN", ""),
+        }
+
+        try:
+            result = subprocess.run(['python3', temp_file], capture_output=True, text=True, timeout=10 , env=env)
+            if result.returncode == 0:
+                return f"Code executed successfully. Output:\n{result.stdout}"
+            else:
+                return f"Code execution failed. Error:\n{result.stderr}"
+        except subprocess.TimeoutExpired:
+            return "Code execution timed out."
+        finally:
+            os.unlink(temp_file)

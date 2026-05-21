@@ -1,10 +1,14 @@
 
+import json
 import os
 from dotenv import load_dotenv
 import httpx
 import asyncio
 
 from config.server_config import ServerConfig
+
+#import rag
+from rag.retrieve import rag_search
 
 class GitlabIssueService():
 
@@ -95,3 +99,30 @@ class GitlabIssueService():
 
 
         return issues
+    
+    async def call_gitlab_api(self,query : str):
+
+        url = "https://gitlab.com/api/v4"
+        rag_search_result = rag_search(query)
+        rag_result_json = json.loads(rag_search_result)
+
+        async with httpx.AsyncClient() as client:
+                api = rag_result_json['api']
+                api_type = rag_result_json['api_type']
+                parameters = rag_result_json.get('parameters', {})
+
+                full_url = url + api
+                print(f"Making {api_type} request to {full_url} with parameters {parameters}")
+
+                if api_type.upper() == "GET":
+                    response = await client.get(full_url, headers=self.headers, params=parameters)
+                # elif api_type.upper() == "POST":
+                #     response = await client.post(full_url, headers=self.headers, json=parameters)
+                # elif api_type.upper() == "PUT":
+                #     response = await client.put(full_url, headers=self.headers, json=parameters)
+                # elif api_type.upper() == "DELETE":
+                #     response = await client.delete(full_url, headers=self.headers, params=parameters)
+
+                response.raise_for_status()
+                return response.json()
+                
