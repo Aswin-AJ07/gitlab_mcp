@@ -32,14 +32,3 @@ async def main():
 if __name__ == '__main__':
    asyncio.run(main())
 
-# TO DO 
-# Next steps - MCP server prompts and MCP Client
-
-# RAG 
-#deploy the rag agent to google cloud vertex ai
-
-
-
-# Better solution - 
-#  Prompts and client in code mode style. make LLM generate a python code for you. then run the code in a local for now , later sandboxed environment.
- 

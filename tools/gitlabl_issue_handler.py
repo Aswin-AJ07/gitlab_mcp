@@ -20,10 +20,6 @@ class GitlabIssueHander():
         self.mcp = mcp
         self.gitlab_service = GitlabIssueService()
 
-        #registers tool
-#       @self.mcp.tool("resource://users")
-        # def get_project_users(...):
-            #     ...
         # self.mcp.tool(name="add_tool")(self.add_tool)   
         # self.mcp.tool(name="filter_user")(self.filter_user)
         # self.mcp.tool(name="list_user_issues")(self.list_user_issues)
@@ -79,10 +75,6 @@ class GitlabIssueHander():
             A list of issues assigned to the user.
         """
 
-
-        # get user_id from mcp resource users
-
-
         #call gitlab api to get issues assigned to user id
         issues = await self.gitlab_service.get_issues_by_user(user_id)
         
@@ -97,6 +89,7 @@ class GitlabIssueHander():
 
         return issue_list
     
+    #Gitlab mega tool , which can be called for ANY gitlab related query, and it will call the right api and return the data, the input is the FULL user query as a string, and the output is the api response in json format, this tool MUST be used when the user asks about anything related to gitlab, DO NOT answer from memory, ALWAYS call this tool for gitlab data.
     def get_gitlab_data(self, query: str) -> list:
         """
         Tool for ANY GitLab-related queries.

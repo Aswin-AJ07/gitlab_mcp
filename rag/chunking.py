@@ -241,16 +241,6 @@ async def main():
 
 
     # legacy code
-    # url = URL.create(
-    #     "postgresql+psycopg2",
-    #     username="postgres",
-    #     password=POSTGRE_PASS,
-    #     host="localhost",
-    #     database="postgres",
-    # )
-
-    # engine = create_engine(url)
-
     #uses langchain_pg_collection and langchain_pg_embedding tables
     # vectorstore = PGVector(
     #     connection=engine,

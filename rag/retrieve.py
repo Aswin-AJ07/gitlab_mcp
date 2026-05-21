@@ -209,25 +209,27 @@ def rag_search(user_query: str):
 
 
 
+"""
+=========================================================
+🧪 TEST
+=========================================================
+if __name__ == "__main__":
+    query = "Lists all issues in a project 12546 with iteration title 'iteration 1' and label 'bug'."
+    result = rag_search(query)
+    print("\n🧠 FINAL ANSWER:\n", result)
+    json_res = json.loads(result)
+    print(json_res)
 
-# =========================================================
-# 🧪 TEST
-# =========================================================
-# if __name__ == "__main__":
-#     query = "Lists all issues in a project 12546 with iteration title 'iteration 1' and label 'bug'."
-#     result = rag_search(query)
-#     print("\n🧠 FINAL ANSWER:\n", result)
-#     json_res = json.loads(result)
-#     print(json_res)
+TO DO
+1. multi query , generate multiple queries from the main query and do multiple retrievals. 
+2. hybrid search - sparse search + vector search
 
-# TO DO
-# 1. multi query , generate multiple queries from the main query and do multiple retrievals. 
-# 2. hybrid search - sparse search + vector search
-
-# Ensemble retriver vs manual rrf
+Ensemble retriver vs manual rrf
 
 
-#Deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
-# deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
-# https://docs.cloud.google.com/agent-builder/agent-engine/develop/custom
-# https://github.com/googleapis/langchain-google-cloud-sql-pg-python/blob/main/samples/langchain_on_vertexai/retriever_agent_with_history_template.py
+Deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
+deploy the rag agent to google cloud vertex ai , wrap rag_chain in a class with predict method
+https://docs.cloud.google.com/agent-builder/agent-engine/develop/custom
+https://github.com/googleapis/langchain-google-cloud-sql-pg-python/blob/main/samples/langchain_on_vertexai/retriever_agent_with_history_template.py
+
+"""
